@@ -1,0 +1,16 @@
+# 忽略所有 Node.js 依賴套件
+node_modules/
+
+# 忽略 Vite 產生的打包檔案 (我們會在伺服器上打包)
+dist/
+
+# [!! 關鍵 !!] 忽略所有環境變數檔案
+.env
+.env.local
+.env.*
+
+# 忽略系統檔案
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

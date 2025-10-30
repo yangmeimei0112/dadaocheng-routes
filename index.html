@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大稻埕旅遊路線查詢</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        :root {
+            --primary-color: #c0392b;
+            --secondary-color: #7f8c8d;
+            --accent-color: #2c3e50;
+            --background-light: #f4f4f4;
+            --background-dark: #ecf0f1;
+            --card-background: #ffffff;
+            --text-dark: #34495e;
+            --text-light: #7f8c8d;
+            --border-color: #e0e0e0;
+            --font-heading: 'Noto Serif TC', serif;
+            --font-body: 'Montserrat', 'Noto Sans TC', sans-serif;
+        }
+
+        /* 動畫效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .page-view {
+            display: none;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .route-card {
+            opacity: 0;
+            animation: fadeIn 0.6s ease-out forwards;
+            animation-delay: var(--delay, 0s);
+        }
+
+        /* 基礎樣式 */
+        body {
+            font-family: var(--font-body);
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+        h1, h2, h3, h4 {
+            font-family: var(--font-heading);
+            color: var(--accent-color);
+            margin-top: 0;
+        }
+        
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--background-dark);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden; 
+        }
+        
+        .header-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.5em;
+            letter-spacing: 2px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-color);
+            display: inline-block;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* 搜尋區塊 */
+        #search-area {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        #search-input {
+            padding: 12px 15px;
+            width: 400px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+        #search-button {
+            padding: 12px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        #search-button:hover { background-color: #a73327; transform: translateY(-1px); }
+
+        /* 載入指示器 */
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: var(--text-light);
+        }
+
+        /* 路線容器 (Grid 佈局) */
+        #routes-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 25px;
+            padding-top: 10px;
+        }
+
+        /* 路線卡片 (列表頁) */
+        .route-card { 
+            background-color: var(--card-background); 
+            border: 1px solid var(--border-color); 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            text-decoration: none;
+            color: var(--text-dark);
+        }
+        .route-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            border-color: var(--primary-color);
+        }
+        
+        .route-card-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        /* 動態圖示的容器 */
+        .card-title-flex {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .card-icon-display {
+            font-size: 1.6em;
+            color: var(--primary-color);
+            width: 30px;
+            text-align: center;
+        }
+        
+        .route-card h2 { 
+            color: var(--primary-color); 
+            font-size: 1.5em; 
+            margin-bottom: 0;
+            min-height: 2.4em; 
+        }
+        .route-card p {
+            margin-bottom: 15px;
+            flex-grow: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 3; 
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 4.8em; 
+            color: var(--text-dark);
+            font-size: 0.95em;
+        }
+        .route-tags { 
+            font-size: 0.9em;
+            margin-top: auto;
+            max-height: 5em;
+            overflow: hidden;
+        }
+        .route-tags span {
+            display: inline-block;
+            background-color: var(--background-dark);
+            border: 1px solid var(--border-color);
+            color: var(--accent-color);
+            padding: 3px 8px;
+            border-radius: 15px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .route-card-footer {
+            background-color: var(--background-dark);
+            padding: 12px 20px;
+            text-align: right;
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* 詳細頁面樣式 */
+        #detail-view {
+            background-color: var(--card-background);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        #detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        #detail-header h2 {
+            color: var(--primary-color);
+            font-size: 2.2em;
+            margin-bottom: 0;
+        }
+        #back-button {
+            padding: 10px 18px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        #back-button:hover { background-color: #34495e; }
+
+        /* 地圖容器 CSS */
+        #map {
+            height: 400px;
+            width: 100%;
+            background-color: var(--border-color);
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        #detail-content h3 {
+            color: var(--accent-color);
+            margin-top: 25px;
+            margin-bottom: 15px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            font-size: 1.6em;
+        }
+        
+        /* 景點 (詳細頁) */
+        .attraction { 
+            border-top: 1px dashed var(--border-color); 
+            padding-top: 15px; 
+            margin-top: 15px; 
+        }
+        .attraction:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+        .attraction h4 { margin-bottom: 8px; color: var(--primary-color); font-size: 1.3em; }
+        .attraction p { font-size: 1em; margin-bottom: 10px; }
+        .attraction ul { list-style: none; padding: 0; margin: 0; font-size: 0.95em; }
+        .attraction ul li { margin-bottom: 8px; }
+        .attraction ul li i { margin-right: 8px; color: var(--primary-color); width: 20px; text-align: center; }
+        .attraction ul li a { color: var(--primary-color); text-decoration: none; }
+        .attraction ul li a:hover { text-decoration: underline; }
+
+        /* 可點擊標籤的樣式 */
+        .tag-clickable {
+            cursor: pointer;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        .tag-clickable:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* RWD */
+        @media (max-width: 768px) {
+            #app { padding: 10px; }
+            h1 { font-size: 2em; }
+            #search-area { flex-direction: column; align-items: center; }
+            #search-input, #search-button { width: 95%; }
+            #routes-container { grid-template-columns: 1fr; }
+            #detail-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+        }
+    </style>
+
+</head>
+<body>
+    <div id="app"> 
+        <div class="header-container">
+            <h1>大稻埕旅遊路線查詢</h1>
+        </div>
+
+        <section id="list-view" class="page-view">
+            <div id="search-area">
+                <input type="text" id="search-input" placeholder="輸入關鍵字 (例如: 美食, 歷史, 文青)">
+                <button id="search-button"><i class="fas fa-search"></i> 查詢</button>
+            </div>
+    
+            <div id="loading">
+                <i class="fas fa-spinner fa-spin"></i> 正在查詢路線...
+            </div>
+    
+            <div id="routes-container">
+                </div>
+        </section>
+
+        <section id="detail-view" class="page-view">
+            <div id="map"></div>
+            
+            <div id="detail-content-wrapper">
+            </div>
+        </section>
+
+    </div>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>
