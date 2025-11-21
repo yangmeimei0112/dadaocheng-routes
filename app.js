@@ -2,8 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 1. 初始化 Supabase 客戶端
-const SUPABASE_URL = 'https://yfejpkxqzmwbswgaymdf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmZWpwa3hxem13YnN3Z2F5bWRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4MTM4NzEsImV4cCI6MjA3NzM4OTg3MX0.HoOXwBib3X3JY8xXGopFLZPmLsALRj88FpG9MUD3Y4I';
+// [!! 修改 !!] 改為從環境變數讀取，避免寫死導致錯誤或外洩
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// 檢查是否成功讀取到環境變數
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('錯誤：找不到 Supabase 環境變數。請檢查 .env 檔案或 Vercel 設定。');
+    // 如果是在本地，alert 提醒一下
+    if (location.hostname === 'localhost') {
+        alert('錯誤：請在 .env 檔案中設定 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY');
+    }
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 2. 取得 HTML 元素
@@ -18,17 +29,11 @@ const detailView = document.getElementById('detail-view');
 const mapContainer = document.getElementById('map');
 const detailContentWrapper = document.getElementById('detail-content-wrapper');
 
-// [!! 新增 !!]
 // 3. Google Maps API 載入邏輯
 // ===================================
 
-/**
- * 動態載入 Google Maps API
- * @returns {Promise<void>}
- */
 function loadGoogleMapsAPI() {
     return new Promise((resolve, reject) => {
-        // 從 .env 檔案讀取金鑰 (Vite 會自動注入)
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
         if (!apiKey) {
@@ -38,13 +43,12 @@ function loadGoogleMapsAPI() {
             return;
         }
 
-        // 建立 script 標籤
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&callback=initMapCallback`;
+        // [!! 修改 !!] 加入 &loading=async 以解決黃色警告
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&loading=async&callback=initMapCallback`;
         script.async = true;
         script.defer = true;
 
-        // 設置一個全域回呼函式，當地圖 API 載入完成時會呼叫它
         window.initMapCallback = () => {
             console.log('Google Maps API 載入成功。');
             resolve();
@@ -56,7 +60,6 @@ function loadGoogleMapsAPI() {
             reject(new Error('Failed to load Google Maps script'));
         };
 
-        // 將 script 標籤加入到 <head>
         document.head.appendChild(script);
     });
 }
@@ -113,6 +116,7 @@ async function fetchAllRoutes() {
 
         if (error) {
             console.error('查詢失敗:', error);
+            // 這裡會顯示更詳細的錯誤
             alert('無法讀取資料：' + error.message);
             return;
         }
@@ -120,7 +124,9 @@ async function fetchAllRoutes() {
         displayRouteList(data);
 
     } catch (err) {
-        console.error('發生錯誤:', err);
+        // 這裡會捕捉 ERR_NAME_NOT_RESOLVED 等網路錯誤
+        console.error('發生錯誤 (可能是連線問題):', err);
+        alert('連線發生錯誤，請檢查網路或 Supabase 狀態。');
     } finally {
         loadingIndicator.style.display = 'none';
     }
@@ -228,7 +234,6 @@ function displayRouteList(routesData) {
 // ===================================
 
 async function initMap(locations) {
-    // 檢查 Google Maps API 是否已載入
     if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
         console.error('Google Maps API 尚未載入。');
         mapContainer.innerHTML = '無法載入地圖。請檢查您的 API 金鑰。';
@@ -245,10 +250,11 @@ async function initMap(locations) {
     const bounds = new google.maps.LatLngBounds();
     const mapCenter = { lat: locations[0].lat, lng: locations[0].lng };
 
+    // [!! 修改 !!] 加入 mapId 以配合 Advanced Markers (雖然我們目前沒用進階樣式，但這是好習慣)
     const map = new google.maps.Map(mapContainer, {
         center: mapCenter,
         zoom: 16,
-        mapId: 'DADAOCHENG_MAP_ID' 
+        mapId: 'DEMO_MAP_ID' 
     });
 
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
@@ -422,11 +428,10 @@ function handleTagClick(event) {
 }
 
 
-// 8. [!! 修改 !!] 事件監聽 (非同步)
+// 8. 事件監聽 (非同步)
 // ===================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 監聽按鈕
     searchButton.addEventListener('click', searchRoutes);
     searchInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
@@ -434,17 +439,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 監聽路由
     window.addEventListener('hashchange', handleHashChange);
     
-    // 監聽標籤點擊
     routesContainer.addEventListener('click', handleTagClick);
     detailView.addEventListener('click', handleTagClick);
 
     try {
-        // [!! 修改 !!] 等待 Google Maps API 載入完成
         await loadGoogleMapsAPI();
-        // API 載入後，才開始處理路由 (這樣地圖才能在詳細頁正常顯示)
         handleHashChange();
     } catch (error) {
         console.error("無法初始化應用程式:", error);
